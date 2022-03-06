@@ -182,6 +182,41 @@ class Ozone:
 
         return AQI_meaning, AQI_health_implications
 
+    def get_city_forecast(
+        self,
+        city: str,
+        data_format: str = "df",
+        df: pandas.DataFrame = pandas.DataFrame(),
+        params: List[str] = [""],
+    ) -> pandas.DataFrame:
+        """Get a city's air quality data
+
+        Args:
+            city (str): The city to get data for.
+            data_format (str): File format for data. Defaults to 'df'. Choose from 'csv', 'json', 'xslx'.
+            df (pandas.DataFrame, optional): An existing dataframe to append the data to.
+            params (List[str], optional): A list of parameters to get data for.
+
+        Returns:
+            pandas.DataFrame: The dataframe containing the data.
+            (If you selected another data format, this dataframe will be empty)
+        """
+        if params == [""]:
+            params = self._default_params 
+
+        r = self._make_api_request(f"{self._search_aqi_url}/{city}/?token={self.token}")
+        if self._check_status_code(r):
+            # Get all the data.
+            data_obj = json.loads(r.content)["data"]
+            row = self._parse_data(data_obj, city, params)
+
+            for variable in ["o3","pm10", "pm25", "uvi"]:
+                for i,value in enumerate(data_obj["forecast"]['daily'][variable]):
+                    row[0][variable+"_"+str(i)] = str(value)
+
+            df = pandas.concat([df, pandas.DataFrame(row)], ignore_index=True)
+        return self._format_output(data_format, df)
+
     def get_coordinate_air(
         self,
         lat: float,
